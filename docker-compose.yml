@@ -1,0 +1,106 @@
+version: '3'
+
+services:
+  keycloak-db:
+    image: postgres:12.1
+    environment:
+      POSTGRES_USER: keycloak-admin
+      POSTGRES_PASSWORD: keycloak-password
+      POSTGRES_DB: keycloakdb
+    ports:
+       - "8765:5432"
+    volumes:
+      - pgdata_keycloak:/var/lib/postgresql/data
+  keycloak:
+     image: jboss/keycloak:8.0.1
+     restart: on-failure
+     command:
+      - "-b"
+      - "0.0.0.0"
+      - "-Dkeycloak.migration.action=import"
+      - "-Dkeycloak.migration.provider=singleFile"
+      - "-Dkeycloak.migration.file=/config/import.json"
+      - "-Dkeycloak.migration.strategy=OVERWRITE_EXISTING"
+     volumes:
+       - ./keycloak/config/:/config/
+     environment:
+       - KEYCLOAK_USER=admin
+       - KEYCLOAK_PASSWORD=password
+       - DB_VENDOR=postgres
+       - DB_USER=keycloak-admin
+       - DB_PASSWORD=keycloak-password
+       - DB_ADDR=keycloak-db
+       - DB_PORT=5432
+       - DB_DATABASE=keycloakdb
+     ports:
+       - "8081:8080"
+       - "8180:8080"
+     depends_on:
+       - keycloak-db
+  online-radio-search-api-db:
+    image: postgres:12.1
+    environment:
+      POSTGRES_USER: online-radio-search-api-admin
+      POSTGRES_PASSWORD: online-radio-search-api-password
+      POSTGRES_DB: onlineradiosearchdb
+    ports:
+       - "8766:5432"
+    volumes:
+      - pgdata_onlineradiosearch:/var/lib/postgresql/data
+  online-radio-search-api-elastic-search:
+    image: elasticsearch:7.6.2
+    environment:
+      discovery.type: single-node
+      network.host: _site_
+      network.publish_host: _local_
+      cluster.name: online_radio_search
+    ports:
+       - "9300:9300"
+       - "9200:9200"
+    volumes:
+      - "elastic_search_onlineradiosearch:/usr/share/elasticsearch/data"
+  online-radio-search-api:
+    image: ors-api
+    restart: on-failure
+    environment:
+      spring.datasource.url: jdbc:postgresql://online-radio-search-api-db:5432/onlineradiosearchdb
+      spring.datasource.username: online-radio-search-api-admin
+      spring.datasource.password: online-radio-search-api-password
+      elasticsearch.host: online-radio-search-api-elastic-search
+      elasticsearch.port: 9300
+      elasticsearch.clustername: online_radio_search
+      keycloak.auth-server-url: http://keycloak:8080/auth
+      keycloak.resource: online-radio-search-app
+      keycloak.keycloak: online-radio-search
+      application.cors.urls: http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - online-radio-search-api-db
+      - online-radio-search-api-elastic-search
+      - keycloak
+  online-radio-search-static-web:
+    image: ors-static-web
+    environment:
+      application.apiUrl: http://online-radio-search-api:8080
+    ports:
+      - "3002:8080"
+    depends_on:
+      - online-radio-search-api
+  online-radio-search-dynamic-web:
+    image: ors-dynamic-web
+    environment:
+      REACT_APP_API_URL: 'http://localhost:8080'
+      REACT_APP_KEYCLOAK_URL: 'http://localhost:8081/auth/'
+    ports:
+      - "3000:80"
+    depends_on:
+      - online-radio-search-api
+
+volumes:
+  pgdata_keycloak:
+    driver: local
+  pgdata_onlineradiosearch:
+    driver: local
+  elastic_search_onlineradiosearch:
+    driver: local
