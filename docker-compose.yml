@@ -12,7 +12,7 @@ services:
     volumes:
       - pgdata_keycloak:/var/lib/postgresql/data
   keycloak:
-     image: jboss/keycloak:8.0.1
+     image: jboss/keycloak:10.0.0
      restart: on-failure
      command:
       - "-b"
@@ -20,7 +20,7 @@ services:
       - "-Dkeycloak.migration.action=import"
       - "-Dkeycloak.migration.provider=singleFile"
       - "-Dkeycloak.migration.file=/config/import.json"
-      - "-Dkeycloak.migration.strategy=OVERWRITE_EXISTING"
+      - "-Dkeycloak.migration.strategy=IGNORE_EXISTING"
      volumes:
        - ./keycloak/config/:/config/
      environment:
@@ -60,7 +60,7 @@ services:
     volumes:
       - "elastic_search_onlineradiosearch:/usr/share/elasticsearch/data"
   online-radio-search-api:
-    image: ors-api
+    image: modestukasai/online-radio-search-api:latest
     restart: on-failure
     environment:
       spring.datasource.url: jdbc:postgresql://online-radio-search-api-db:5432/onlineradiosearchdb
@@ -80,7 +80,7 @@ services:
       - online-radio-search-api-elastic-search
       - keycloak
   online-radio-search-static-web:
-    image: ors-static-web
+    image: modestukasai/online-radio-search-static-web:latest
     environment:
       application.apiUrl: http://online-radio-search-api:8080
     ports:
@@ -88,7 +88,7 @@ services:
     depends_on:
       - online-radio-search-api
   online-radio-search-dynamic-web:
-    image: ors-dynamic-web
+    image: modestukasai/online-radio-search-console:latest
     environment:
       REACT_APP_API_URL: 'http://localhost:8080'
       REACT_APP_KEYCLOAK_URL: 'http://localhost:8081/auth/'
