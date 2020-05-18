@@ -34,7 +34,6 @@ services:
        - DB_DATABASE=keycloakdb
      ports:
        - "8081:8080"
-       - "8180:8080"
      depends_on:
        - keycloak-db
   online-radio-search-api-db:
